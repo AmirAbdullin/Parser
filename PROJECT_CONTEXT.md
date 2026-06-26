@@ -1,7 +1,8 @@
 # SkillCompass — контекст проекта (handoff)
 
-> **Для человека и для AI в новом чате:** прочитай этот файл целиком перед продолжением работы.  
-> Код лежит в `local-tasks/datapulse/jobpulse/`. Пользователь **не пишет код** — делает только команды в терминале и смотрит результат в браузере.
+> **Для AI в новом чате:** прочитай этот файл целиком перед работой.  
+> Код: `local-tasks/datapulse/jobpulse/`.  
+> Пользователь **не пишет код** — только команды в терминале и браузер.
 
 ---
 
@@ -9,263 +10,284 @@
 
 | Поле | Значение |
 |------|----------|
-| **Задание** | DataPulse — семестровый учебный проект (data-driven сервис, ML, Docker) |
-| **Наш проект** | **SkillCompass** — аналитика вакансий **IT-аналитиков** |
-| **Задача продукта** | Показать рынок труда для BA/SA/PA/DA: зарплаты, роли, ML-прогноз «сколько могу получить» |
-| **Репозиторий b2b** | Основной ERP-проект; SkillCompass — отдельная папка `local-tasks/datapulse/`, к прод-коду не относится |
+| **Задание** | DataPulse — учебный проект (data-driven сервис, ML, Docker) |
+| **Продукт** | **SkillCompass** — аналитика вакансий **IT-аналитиков** (BA/SA/PA/DA) |
+| **Репозиторий** | Папка `local-tasks/datapulse/` в b2b-репо, **не связана с ERP** |
 
 ---
 
-## 2. Ниша (только 4 роли)
+## 2. Текущий статус (2026-06-25)
 
-| Ключ в данных | Роль | Поисковый запрос |
-|---------------|------|------------------|
-| `business_analyst` | Бизнес-аналитик | бизнес-аналитик |
-| `systems_analyst` | Системный аналитик | системный аналитик |
-| `product_analyst` | Продуктовый аналитик | продуктовый аналитик |
-| `data_analyst` | Аналитик данных | аналитик данных |
+| Компонент | Статус |
+|-----------|--------|
+| **Docker Desktop** | ✅ Установлен, 4 контейнера работают |
+| **PostgreSQL** | ✅ Локально в Docker, БД **`datapulse`** (не `skillcompass`!) |
+| **Ingestor** | ✅ HH (HTML fallback) + SuperJob → PostgreSQL, scheduler 4 ч |
+| **API** | ✅ FastAPI читает **PostgreSQL** (`data_source: postgresql`) |
+| **Streamlit** | ✅ 4 страницы (Gradio **не нужен** сейчас) |
+| **ML** | ✅ CatBoost, `salary_spec`, beats naive |
+| **Облачная БД (Yandex)** | ❌ Отложена, проблемы с доступом |
 
-Код ролей: `jobpulse/services/ingestor/src/ingestor/roles.py`
+### Данные (PostgreSQL)
 
----
+| Метрика | Значение |
+|---------|----------|
+| Всего вакансий | **~1437** |
+| С указанной ЗП (от и/или до) | **~348** (~24%) |
+| HH | ~1350 |
+| SuperJob | ~87 |
+| ML обучение | **346** samples (только вакансии с `salary_mid`) |
 
-## 3. Источники данных
-
-| # | Источник | Как собираем | Статус |
-|---|----------|--------------|--------|
-| 1 | **HH.ru** | Официальный API → при **403 Forbidden** автоматический **HTML fallback** (`hh_html.py`) | Работает |
-| 2 | **SuperJob** | REST API, заголовок `X-Api-App-Id` = Secret Key из `.env` | Работает |
-
-Фильтр «шума» (кредитный аналитик и т.п.): `ingestor/filters.py`
-
----
-
-## 4. Стек
-
-| Слой | Технологии |
-|------|------------|
-| Сбор | Python, requests, BeautifulSoup4, APScheduler |
-| Данные | Parquet (`data/processed/vacancies.parquet`), позже PostgreSQL в Docker |
-| ML | CatBoost, scikit-learn, joblib |
-| API | FastAPI, Swagger `/docs` |
-| UI | Streamlit (4 страницы) |
-| Контейнеры | docker-compose.yml (Docker Desktop **у пользователя пока нет**) |
+**Почему не все с ЗП:** HH API 403 → HTML-парсинг **списка** поиска; на карточке в списке часто нет ₽ (на полной странице может быть). Фильтр HH «Указан доход» **не используем** при сборе.
 
 ---
 
-## 5. Структура каталогов
+## 3. Ниша — 4 роли
+
+| Ключ | Роль | Поиск RU + EN |
+|------|------|---------------|
+| `business_analyst` | Бизнес-аналитик | бизнес-аналитик / business analyst |
+| `systems_analyst` | Системный аналитик | системный аналитик / system analyst |
+| `product_analyst` | Продуктовый аналитик | продуктовый аналитик / product analyst |
+| `data_analyst` | Аналитик данных | аналитик данных / data analyst |
+
+Код: `services/ingestor/src/ingestor/roles.py`, классификация по title: `role_classifier.py`
+
+---
+
+## 4. Качество данных (реализовано)
+
+| Проблема | Решение | Файл |
+|----------|---------|------|
+| Мусор (брокер, химик…) | Stop-list + классификатор title | `role_classifier.py`, `filters.py` |
+| Аномальные ЗП (1M ₽) | Cap **30k–600k** ₽ | `salary_utils.py`, `ml/load_data.py` |
+| RU/EN дубли | Отдельные запросы, dedup `(source, external_id)` | `hh_html.py`, `row_processing.py` |
+| Роль «бизнес и системный» | Роль из **названия**, не из поискового запроса | `role_classifier.py` |
+| HH key_skills | Догрузка до 400 вакансий/прогон | `collectors/hh_skills.py` |
+| История зарплат | Таблица `salary_snapshots` после ingest | `snapshots.py` |
+
+---
+
+## 5. Стек
+
+Python · requests · BeautifulSoup4 · SQLAlchemy · PostgreSQL · APScheduler · pandas · CatBoost · FastAPI · Streamlit · Docker Compose
+
+---
+
+## 6. Структура
 
 ```
 local-tasks/datapulse/
-├── PROJECT_CONTEXT.md          ← этот файл
-├── index.md                    ← описание и roadmap
-├── onboarding.md               ← для агента
-└── jobpulse/                   ← весь код SkillCompass
-    ├── .env                      ← секреты (НЕ в git), уже настроен у пользователя
-    ├── .env.example
-    ├── docker-compose.yml
-    ├── NO_DOCKER.md              ← краткий запуск без Docker
-    ├── data/
-    │   ├── processed/vacancies.parquet   ← основной датасет (~699 записей)
-    │   └── raw/hh_analysts_sample.json
-    ├── ml/
-    │   ├── notebooks/01_eda.ipynb
-    │   ├── training/train_salary.py
-    │   └── artifacts/
-    │       ├── salary_model.joblib
-    │       └── salary_metrics.json
+├── PROJECT_CONTEXT.md      ← этот файл
+├── CONSULTATION.md         ← сценарий консультации
+├── DEMO.md                 ← сценарий защиты
+├── USER_STEPS.md           ← шаги для пользователя
+└── jobpulse/
+    ├── .env                ← секреты (НЕ в git!)
+    ├── docker-compose.yml  ← db + ingestor + api + dashboard
     ├── services/
-    │   ├── ingestor/             ← HH + SuperJob → PostgreSQL (для Docker)
-    │   ├── api/                  ← FastAPI
-    │   └── dashboard/            ← Streamlit
+    │   ├── ingestor/       ← сбор → PostgreSQL
+    │   ├── api/            ← FastAPI, читает PostgreSQL
+    │   └── dashboard/      ← Streamlit
+    ├── ml/
+    │   ├── training/train_salary.py
+    │   ├── load_data.py
+    │   └── artifacts/
+    ├── data/processed/vacancies.parquet  ← экспорт из БД для ML
     └── scripts/
-        ├── fetch_sample.py       ← быстрый тест HH
-        ├── fetch_all.py          ← полный сбор HH + SuperJob → parquet
-        ├── run_api.py
-        └── run_dashboard.py
+        ├── export_parquet_from_db.py   ← БД → parquet (localhost)
+        ├── fetch_all.py                ← сбор без Docker → parquet
+        ├── run_api.py / run_dashboard.py
 ```
 
 ---
 
-## 6. Конфигурация `.env`
+## 7. `.env` (шаблон)
 
-Файл: `jobpulse/.env` (один файл, **не** `.env.example`).
+```env
+DB_USER=datapulse
+DB_PASSWORD=datapulse_secret
+DB_NAME=datapulse
+DATABASE_URL=postgresql://datapulse:datapulse_secret@db:5432/datapulse
 
-| Переменная | Назначение |
-|------------|------------|
-| `HH_USER_AGENT=SkillCompass/1.0 (email@...)` | **Реальный email** пользователя (edu.misis.ru) |
-| `SUPERJOB_API_KEY=...` | Secret Key с api.superjob.ru/register |
-| `INGEST_AREA_ID=0` | 0 = вся Россия |
-| `INGEST_MAX_PAGES=10` | Страниц на каждую роль при сборе |
+HH_USER_AGENT=SkillCompass/1.0 (email@edu.misis.ru)
+SUPERJOB_API_KEY=...
 
-**Не коммитить** `.env` и ключи в чат.
+INGEST_AREA_ID=0
+INGEST_MAX_PAGES=20
+INGEST_SCHEDULE_HOURS=4
+INGEST_SKILLS_LIMIT=400
+
+USE_DB=true
+API_URL=http://api:8000
+```
+
+**Важно:** для скриптов на Windows host БД = `localhost:5432/datapulse`.  
+`export_parquet_from_db.py` сам заменяет `@db:` → `@localhost:`.
+
+**Не коммитить `.env` и не просить ключи в чат.**
 
 ---
 
-## 7. Команды запуска (Windows, PowerShell)
-
-Все команды — из корня **`jobpulse`**:
+## 8. Команды (Windows PowerShell)
 
 ```powershell
 cd c:\Users\snaki\b2b\b2b\local-tasks\datapulse\jobpulse
 ```
 
-### 7.1. Первичная настройка (один раз)
+### Docker (основной режим)
 
 ```powershell
-pip install requests python-dotenv pydantic-settings beautifulsoup4 lxml
-pip install pandas pyarrow catboost scikit-learn joblib
-pip install -r services/api/requirements.txt
-pip install -r services/dashboard/requirements.txt
-pip install -r ml/requirements.txt
+docker compose up -d --build
+docker compose ps
 ```
 
-### 7.2. Обновить данные и модель
+- API: http://127.0.0.1:8000/docs  
+- Dashboard: http://localhost:8501  
+
+### Ручной ingest (один раз)
 
 ```powershell
-python scripts/fetch_all.py
+docker compose run --rm ingestor python -m ingestor.main --once
+```
+
+### ML после обновления БД
+
+```powershell
+python scripts/export_parquet_from_db.py
 python ml/training/train_salary.py
+docker compose restart api dashboard
 ```
 
-Ожидание: `data/processed/vacancies.parquet`, `ml/artifacts/salary_model.joblib`.
-
-### 7.3. Запуск сервиса (2 терминала)
-
-**Терминал 1 — API:**
+### Логи ingestor
 
 ```powershell
-cd c:\Users\snaki\b2b\b2b\local-tasks\datapulse\jobpulse
-python scripts/run_api.py
-```
-
-- Swagger: http://127.0.0.1:8000/docs  
-- Health: http://127.0.0.1:8000/health  
-
-**Терминал 2 — дашборд:**
-
-```powershell
-cd c:\Users\snaki\b2b\b2b\local-tasks\datapulse\jobpulse
-python scripts/run_dashboard.py
-```
-
-- UI: http://localhost:8501  
-
-### 7.4. EDA (notebook)
-
-```powershell
-jupyter notebook ml/notebooks/01_eda.ipynb
-```
-
-### 7.5. Docker (перед сдачей, когда установят Docker Desktop)
-
-```powershell
-docker compose up --build
+docker logs jobpulse-ingestor-1 --tail 30
 ```
 
 ---
 
-## 8. API эндпоинты
+## 9. API эндпоинты
 
 | Метод | URL | Описание |
 |-------|-----|----------|
-| GET | `/health` | Статус, число вакансий |
-| GET | `/data/stats` | KPI: роли, источники |
-| GET | `/data/vacancies?role=&source=&search=&limit=&offset=` | Список вакансий |
-| POST | `/predict` | JSON: `analyst_role`, `experience`, `area`, `source`, `employment`, `has_salary_range` |
+| GET | `/health` | status, vacancies_loaded, data_source |
+| GET | `/data/stats` | KPI, роли, источники, with_salary |
+| GET | `/data/filters` | areas, experiences, sources, roles |
+| GET | `/data/vacancies?role=&source=&experience=&search=` | Список |
+| GET | `/data/salary-history?role=&experience=` | Снимки / fallback по published_at |
+| POST | `/predict` | см. ниже |
 | GET | `/model/metrics` | MAE, RMSE, beats_naive |
 
+**POST `/predict` body:**
+
+```json
+{
+  "analyst_role": "systems_analyst",
+  "experience": "Опыт 1-3 года",
+  "area": "Москва",
+  "source": "all",
+  "employment": "unknown",
+  "salary_spec": "range"
+}
+```
+
+`salary_spec`: `range` | `from_only` | `to_only` — как указана ЗП в похожих вакансиях.
+
+Ответ включает `predicted_salary` и `top_skills` (HH, если есть key_skills в БД).
+
 ---
 
-## 9. Streamlit — страницы
+## 10. Streamlit
 
-| Файл | Назначение |
-|------|------------|
-| `pages/1_📊_Overview.py` | KPI, графики ролей и зарплат |
-| `pages/2_🔮_Predictions.py` | Калькulator ML + метрики |
-| `pages/3_📋_Data.py` | Таблица, фильтры |
-| `pages/4_⚙️_Monitoring.py` | Статус API, инструкция обновления |
+| Страница | Функции |
+|----------|---------|
+| Overview | KPI, роли, boxplot зарплат, график динамики |
+| Predictions | Dropdown: роль, опыт, город, источник, **salary_spec**; метрики ML; top skills |
+| Data | Фильтры: роль, **опыт**, источник, поиск |
+| Monitoring | Статус API |
 
 ---
 
-## 10. ML
+## 11. ML
 
 | Параметр | Значение |
 |----------|----------|
-| Задача | Регрессия: предсказать зарплату (₽/мес) |
-| Модель | CatBoost, `ml/artifacts/salary_model.joblib` |
-| Признаки | `analyst_role`, `experience`, `area`, `source`, `employment`, `has_salary_range` |
-| Метрики (на момент обучения) | MAE ~53k, RMSE ~84k, лучше naive baseline |
+| Модель | CatBoost → `ml/artifacts/salary_model.joblib` |
+| Цель | `salary_mid` (среднее from/to, cap 30k–600k) |
+| Признаки | `analyst_role`, `experience`, `area`, `source`, `employment`, **`salary_spec`** |
+| Метрики | MAE ~**50k**, RMSE ~**75k**, **beats_naive: true** |
 
-Переобучение: после каждого `fetch_all.py` запускать `train_salary.py`.
-
----
-
-## 11. Что уже сделано / что осталось
-
-### ✅ Готово
-
-- [x] Тема SkillCompass, 4 роли аналитиков
-- [x] Сбор HH (HTML fallback) + SuperJob
-- [x] ~699 вакансий в parquet
-- [x] EDA notebook
-- [x] ML-модель зарплаты
-- [x] FastAPI + Swagger
-- [x] Streamlit, 4 страницы
-- [x] docker-compose.yml (api + dashboard + ingestor + db)
-
-### ⏳ Осталось для полной сдачи DataPulse
-
-- [ ] Установить **Docker Desktop**, проверить `docker compose up --build`
-- [ ] Ingestor пишет в PostgreSQL по расписанию (сейчас данные в parquet)
-- [ ] README с скриншотами для защиты
-- [ ] Демо-сценарий презентации (текст для пользователя)
-- [ ] Опционально для «5»: MLflow, pytest, CI, Redis, Alembic
+**MAE** — средняя ошибка прогноза в ₽. **beats_naive** — лучше, чем «всем одна медиана».
 
 ---
 
-## 12. Известные особенности
-
-1. **HH API 403** — нормально; включается парсинг HTML поиска hh.ru.
-2. **Папка `jobpulse`** — можно переименовать в `skillcompass`, пути в доках обновить.
-3. **Пользователь не программирует** — объяснять простым языком, давать готовые команды `cd ...` + `python ...`.
-4. **Лимит Cursor** — работать крупными блоками, не дублировать длинную историю чата.
-5. **SuperJob ключ** — только в `.env`, регистрация приложения на api.superjob.ru (не путать с аккаунтом соискателя на superjob.ru).
-
----
-
-## 13. Сценарий защиты (demo)
-
-1. Открыть дашборд → «699 вакансий IT-аналитиков, 4 роли, HH + SuperJob».
-2. **Overview** — сравнить зарплаты по ролям.
-3. **Predictions** — «Системный аналитик, Москва, 1–3 года» → прогноз ML.
-4. **Data** — фильтр по роли.
-5. **Monitoring** — источники OK.
-6. Swagger → POST `/predict` (опционально).
-
----
-
-## 14. Как продолжить в новом чате
-
-Сообщение агенту:
+## 12. Архитектура
 
 ```
-Проект SkillCompass (DataPulse). Прочитай:
-local-tasks/datapulse/PROJECT_CONTEXT.md
-Продолжи с пункта «Осталось» / или: [задача].
-Docker у пользователя: да/нет.
+HH.ru + SuperJob
+      ↓
+  Ingestor (каждые 4 ч)
+      ↓
+  PostgreSQL (datapulse)  ←── API (FastAPI) ←── Streamlit
+      ↓
+  export_parquet_from_db.py → train_salary.py → salary_model.joblib
 ```
 
 ---
 
-## 15. Связанные файлы
+## 13. Известные ограничения
 
-| Файл | Зачем |
-|------|-------|
-| `index.md` | Roadmap и критерии оценки |
-| `jobpulse/NO_DOCKER.md` | Короткий чеклист запуска |
-| `jobpulse/README.md` | Краткое описание |
-| `onboarding.md` | Правила для AI в репо b2b |
+1. **HH API 403** → HTML fallback, ЗП парсится с карточки списка (мало цифр).
+2. **348/1437 с ЗП** — не баг; нужен 2-й проход (detail page) или `only_with_salary`.
+3. **top_skills** часто пустой — skills грузятся для 400 HH/прогон; detail API тоже может 403.
+4. **Имя БД `datapulse`**, не `skillcompass` — иначе export с Windows падает.
+5. Пользователь **не программирует** — давать готовые команды.
 
 ---
 
-*Обновлено: 2026-06-24. Данные: ~699 вакансий (HH 615 + SuperJob 84 после dedup).*
+## 14. Осталось / backlog
+
+### Для защиты (~4 дня от 2026-06-24)
+
+- [ ] README + скриншоты в `jobpulse/docs/screenshots/`
+- [ ] Репетиция по `DEMO.md`
+- [ ] Опционально: 2-й ingest → точки на графике истории
+
+### Обсуждалось, не сделано
+
+- [ ] **Догрузка ЗП** с детальной страницы HH (как skills) → больше 348 с ЗП
+- [ ] HH параметр **`only_with_salary`** при сборе
+- [ ] Фильтр **«Только с зарплатой»** на Data
+- [ ] SuperJob skills из текста (NLP)
+- [ ] **Gradio** вместо Streamlit (не приоритет)
+- [ ] Облачная PostgreSQL (Yandex MDB) — отложено
+- [ ] MLflow, pytest, CI (опционально на «5»)
+
+---
+
+## 15. Сообщение для нового чата
+
+```
+Проект SkillCompass (DataPulse).
+Прочитай: local-tasks/datapulse/PROJECT_CONTEXT.md
+Docker: да. БД: локальный PostgreSQL (datapulse).
+Задача: [опиши]
+Пользователь не пишет код — только терминал и браузер.
+```
+
+---
+
+## 16. Связанные файлы
+
+| Файл | Назначение |
+|------|------------|
+| `CONSULTATION.md` | Краткий сценарий консультации |
+| `DEMO.md` | Сценарий защиты 5–7 мин |
+| `USER_STEPS.md` | Пошаговая инструкция |
+| `jobpulse/NO_DOCKER.md` | Запуск без Docker |
+| `onboarding.md` | Правила AI в b2b-репо |
+
+---
+
+*Обновлено: 2026-06-25. PostgreSQL ~1437 вакансий, ~348 с ЗП, API на PostgreSQL, Docker работает.*

@@ -1,0 +1,1 @@
+"""JobPulse ingestor package."""

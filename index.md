@@ -66,11 +66,15 @@ local-tasks/datapulse/
 
 ## Текущий статус
 
-**Этап 0–1 (без Docker):** сбор → parquet, EDA notebook, ML-скрипт.
+**Готово без Docker:** данные, EDA, ML, **FastAPI**, **Streamlit** (4 страницы).
 
-**Позже:** Docker + PostgreSQL + API + Streamlit. См. `jobpulse/NO_DOCKER.md`.
+**Перед сдачей:** Docker Desktop + `docker compose up --build`.
 
-## Ссылки
+Запуск: `NO_DOCKER.md`.
 
-- HH API: https://dev.hh.ru/
-- SuperJob API: https://api.superjob.ru/
+## Связанные файлы
+
+| Файл | Зачем |
+|------|-------|
+| **`PROJECT_CONTEXT.md`** | **Главная выжимка** — контекст, команды, статус (для человека и AI) |
+| `jobpulse/NO_DOCKER.md` | Короткий запуск без Docker |
