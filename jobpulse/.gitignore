@@ -4,7 +4,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-ml/artifacts/*.joblib
+
 ml/notebooks/.ipynb_checkpoints/
 data/raw/*.json
 data/raw/*.csv
