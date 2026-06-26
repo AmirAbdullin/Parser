@@ -1,61 +1,91 @@
 # SkillCompass
 
-**Компас навыков и зарплат для IT-аналитиков** — бизнес-, системный, продуктовый и аналитик данных.
+**Компас навыков и зарплат для IT-аналитиков** — учебный проект DataPulse.
 
-Полный контекст и команды: [`../PROJECT_CONTEXT.md`](../PROJECT_CONTEXT.md)
+Сбор вакансий с **HH.ru** и **SuperJob** по четырём ролям (BA, SA, PA, DA), хранение в **PostgreSQL**, **ML-прогноз зарплаты** (CatBoost), REST **API** (FastAPI) и **дашборд** (Streamlit). Развёртывание — **Docker Compose** + **GitHub Actions**.
 
-DataPulse · HH.ru + SuperJob → PostgreSQL → ML → FastAPI → Streamlit.
+## Демо
 
-## Ниша
+| Сервис | URL |
+|--------|-----|
+| Dashboard | http://46.21.244.197:8501 |
+| Swagger API | http://46.21.244.197:8000/docs |
 
-| Роль | Код |
-|------|-----|
-| Бизнес-аналитик | `business_analyst` |
-| Системный аналитик | `systems_analyst` |
-| Продуктовый аналитик | `product_analyst` |
-| Аналитик данных | `data_analyst` |
+## Возможности
+
+- KPI и графики по ролям, источникам, зарплатам
+- Прогноз ЗП по профилю (роль, опыт, город, источник)
+- Топ навыков HH для выбранной роли и опыта
+- Таблица вакансий с фильтрами
+- Мониторинг API и последнего ingest
+
+## Данные
+
+| Метрика | Значение |
+|---------|----------|
+| Вакансий в БД | ~3075 |
+| С указанной зарплатой | ~1104 |
+| С навыками (HH) | ~1870 |
+| ML test MAE | ~44 000 ₽ |
 
 ## Быстрый старт
 
 ```powershell
-cd local-tasks\datapulse\jobpulse
+git clone https://github.com/AmirAbdullin/Parser.git
+cd Parser/jobpulse
 copy .env.example .env
-# HH_USER_AGENT=SkillCompass/1.0 (ваш_email@mail.ru)
+# HH_USER_AGENT=SkillCompass/1.0 (your@email.com)
 # SUPERJOB_API_KEY=...
 
-pip install requests python-dotenv pydantic-settings beautifulsoup4 lxml
-python scripts/fetch_sample.py
+docker compose up -d --build
 ```
 
-Ожидаемо: `data/raw/hh_analysts_sample.json` с разбивкой по 4 ролям.
+- Dashboard: http://localhost:8501  
+- API: http://localhost:8000/docs  
 
-## Docker
+## Структура репозитория
 
-```powershell
-docker compose up --build
+```
+Parser/
+├── README.md
+├── USER_STEPS.md          # запуск и деплой
+├── DEMO.md                # сценарий презентации
+├── DATA_INGEST.md         # pipeline данных
+├── .github/workflows/     # auto-deploy
+└── jobpulse/
+    ├── docker-compose.yml
+    ├── services/
+    │   ├── ingestor/      # сбор → PostgreSQL
+    │   ├── api/           # FastAPI
+    │   └── dashboard/     # Streamlit
+    └── ml/                # обучение и артефакты модели
 ```
 
-## Скриншоты (для защиты)
+## Стек
 
-Положите PNG в `docs/screenshots/` (см. `../USER_STEPS.md`, шаг 7):
+Python · PostgreSQL · SQLAlchemy · pandas · CatBoost · FastAPI · Pydantic · Streamlit · Docker · GitHub Actions
 
-| Файл | Страница |
-|------|----------|
-| `01-overview.png` | Overview — KPI и графики |
-| `02-predictions.png` | Predictions — калькулятор |
-| `03-data.png` | Data — таблица |
-| `04-monitoring.png` | Monitoring — статус API |
+## Документация
 
-## Demo на защите
+- [USER_STEPS.md](USER_STEPS.md) — настройка `.env`, Docker, деплой
+- [DEMO.md](DEMO.md) — сценарий защиты (5–7 мин)
+- [DATA_INGEST.md](DATA_INGEST.md) — ingest pipeline
+- [jobpulse/NO_DOCKER.md](jobpulse/NO_DOCKER.md) — запуск без Docker
 
-Полный сценарий речи (5–7 мин): [`../DEMO.md`](../DEMO.md)
+## Архитектура
 
-Кратко:
+```
+HH.ru + SuperJob
+       ↓
+   Ingestor (merge, dedup, enrich)
+       ↓
+   PostgreSQL
+       ↓
+   CatBoost ← export/train
+       ↓
+   FastAPI ←→ Streamlit
+```
 
-1. «SkillCompass — 4 роли IT-аналитиков, HH + SuperJob, ~699 вакансий»
-2. Overview — сравнение зарплат по ролям
-3. Predictions — системный аналитик, Москва, 1–3 года → ML-прогноз
-4. Data — фильтр по роли
-5. Monitoring + Swagger `/predict`
+## Команда
 
-План: `../index.md` · ваши шаги: `../USER_STEPS.md`
+Учебный проект, МИСИС / DataPulse.

@@ -1,40 +1,42 @@
-# SkillCompass — без Docker
-
-## 1. Данные и модель (если ещё не делали)
-
-```powershell
-cd c:\Users\snaki\b2b\b2b\local-tasks\datapulse\jobpulse
-python scripts/fetch_all.py
-python ml/training/train_salary.py
-```
-
-## 2. API (терминал 1)
-
-```powershell
-pip install -r services/api/requirements.txt
-python scripts/run_api.py
-```
-
-Swagger: http://127.0.0.1:8000/docs
-
-## 3. Дашборд (терминал 2)
-
-```powershell
-pip install -r services/dashboard/requirements.txt
-python scripts/run_dashboard.py
-```
-
-Браузер: http://localhost:8501
-
-## Страницы дашборда
-
-| Страница | Что показывает |
-|----------|----------------|
-| Overview | KPI, роли, зарплаты |
-| Predictions | ML-калькулятор зарплаты |
-| Data | Таблица вакансий |
-| Monitoring | Статус API |
-
-## Перед защитой
-
-Установите Docker Desktop → `docker compose up --build`
+# SkillCompass — без Docker
+
+```powershell
+cd jobpulse
+pip install -r services/api/requirements.txt
+pip install -r services/dashboard/requirements.txt
+```
+
+## API (терминал 1)
+
+```powershell
+python scripts/run_api.py
+```
+
+http://127.0.0.1:8000/docs
+
+## Дашборд (терминал 2)
+
+```powershell
+python scripts/run_dashboard.py
+```
+
+http://localhost:8501
+
+## Страницы
+
+| Страница | Содержание |
+|----------|------------|
+| Общая статистика | KPI, графики |
+| Прогноз зарплаты и навыков | ML-калькулятор |
+| Данные | Таблица |
+| Мониторинг | Статус API |
+
+## Данные и ML (без PostgreSQL)
+
+```powershell
+python scripts/fetch_all.py
+python ml/training/train_salary.py
+```
+
+Для production-режима используйте `docker compose up`.
+

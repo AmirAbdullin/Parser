@@ -1,7 +1,7 @@
 {
-  "samples": 346,
-  "test_mae": 49881.63,
-  "test_rmse": 75107.06,
-  "naive_mae": 72598.07,
+  "samples": 1103,
+  "test_mae": 43642.35,
+  "test_rmse": 55609.19,
+  "naive_mae": 59122.66,
   "beats_naive": true
 }

@@ -14,7 +14,7 @@ subprocess.run(
         "-m",
         "streamlit",
         "run",
-        "app.py",
+        "Меню_навигации.py",
         "--server.port",
         "8501",
     ],

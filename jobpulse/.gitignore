@@ -4,8 +4,9 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-
+catboost_info/
 ml/notebooks/.ipynb_checkpoints/
 data/raw/*.json
 data/raw/*.csv
+data/processed/vacancies.json
 *.log
