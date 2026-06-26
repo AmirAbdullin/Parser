@@ -1,0 +1,24 @@
+# Локальные / служебные файлы (не для публичного репозитория)
+PROJECT_CONTEXT.md
+CONSULTATION.md
+onboarding.md
+index.md
+
+# Секреты и дампы
+.env
+**/.env
+*.sql
+datapulse_dump.sql
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# CatBoost training logs
+**/catboost_info/
+
+# Raw data samples (optional)
+jobpulse/data/raw/*.json
+jobpulse/data/raw/*.csv
