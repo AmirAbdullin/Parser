@@ -20,7 +20,8 @@ def load_vacancies() -> pd.DataFrame:
         payload = json.loads(RAW_JSON.read_text(encoding="utf-8"))
         return pd.DataFrame(payload.get("items", []))
     raise FileNotFoundError(
-        "No data. Run: python scripts/fetch_all.py (or fetch_sample.py)"
+        "No data. Run: python scripts/export_parquet_from_db.py "
+        "(or scripts/fetch_all.py without Docker DB)"
     )
 
 
